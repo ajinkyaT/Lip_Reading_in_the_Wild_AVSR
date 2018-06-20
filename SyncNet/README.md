@@ -47,6 +47,7 @@ sh download_model.sh
 python run_pipeline.py --videofile /path/to/video.mp4 --reference name_of_video --data_dir /path/to/output
 python run_syncnet.py --videofile /path/to/video.mp4 --reference name_of_video --data_dir /path/to/output
 python run_visualise.py --videofile /path/to/video.mp4 --reference name_of_video --data_dir /path/to/output
+python run_speaker.py --videofile /path/to/video.mp4 --reference name_of_video --data_dir /path/to/output
 ```
 
 Outputs:
@@ -54,6 +55,7 @@ Outputs:
 $DATA_DIR/pycrop/$REFERENCE/*.avi - cropped face tracks
 $DATA_DIR/pywork/$REFERENCE/offsets.txt - audio-video offset values
 $DATA_DIR/pyavi/$REFERENCE/video_out.avi - output video (as shown below)
+$DATA_DIR/pyavi/$REFERENCE/video_out_speaker.avi - current speaker in a frame highlighted by blue bounding box
 ```
 <p align="center">
   <img src="img/ex1.jpg" width="45%"/>
