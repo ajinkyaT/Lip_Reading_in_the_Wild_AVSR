@@ -4,6 +4,26 @@ import json
 import logging
 
 
+__all__ = [
+    'Params',
+    'set_logger',
+    'save_dict_to_json',
+    'UNK',
+    'SOS',
+    'EOS',
+    'UNK_ID',
+    'SOS_ID',
+    'EOS_ID',
+]
+
+
+UNK = '<unk>'
+SOS = '<s>'
+EOS = '</s>'
+UNK_ID = 0
+SOS_ID = 1
+EOS_ID = 2
+
 class Params():
     """Class that loads hyperparameters from a json file.
 

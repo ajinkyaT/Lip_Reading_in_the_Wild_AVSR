@@ -1,6 +1,10 @@
 """Define the model."""
 
 import tensorflow as tf
+import was # stands for watch-attend-spell related code
+import logging
+import utils
+
 
 
 def build_model(is_training, inputs, params):
@@ -15,36 +19,98 @@ def build_model(is_training, inputs, params):
     Returns:
         output: (tf.Tensor) output of the model
     """
+
+
+    
     images = inputs['images']
-
-    assert images.get_shape().as_list() == [None, params.image_size, params.image_size, 3]
-
+    source_sequence_length = inputs['source_sequence_length']
+    
+    decoder_inputs = None
+    targets = None
+    target_sequence_length = None
+    
+    if is_training:
+        decoder_inputs = inputs['targets_inputs']
+        targets = inputs['targets_outputs']
+        target_sequence_length = inputs['target_sequence_length']
+        
     out = images
-    # Define the number of channels of each convolution
-    # For each block, we do: 3x3 conv -> batch norm -> relu -> 2x2 maxpool
-    num_channels = params.num_channels
-    bn_momentum = params.bn_momentum
-    channels = [num_channels, num_channels * 2, num_channels * 4, num_channels * 8]
-    for i, c in enumerate(channels):
-        with tf.variable_scope('block_{}'.format(i+1)):
-            out = tf.layers.conv2d(out, c, 3, padding='same')
-            if params.use_batch_norm:
-                out = tf.layers.batch_normalization(out, momentum=bn_momentum, training=is_training)
-            out = tf.nn.relu(out)
-            out = tf.layers.max_pooling2d(out, 2, 2)
+    out = tf.reshape(out, shape= [-1, 112,112,5]) # reshaping into [batch_size*sequence_length,112,112,5]
 
-    assert out.get_shape().as_list() == [None, 4, 4, num_channels * 8]
+    # define CNN feature extractor
+    logging.info('Building watcher')
+    with tf.variable_scope('CNN_features'):
+            out = tf.layers.conv2d(images, filters = 96, kernel_size = 3, padding='valid', name='conv1_lip')
+            out = tf.layers.batch_normalization(out, training= is_training, name= 'bn1_lip')
+            out = tf.nn.relu(out, name= 'relu1_lip')
+            out = tf.layers.max_pooling2d(out, pool_size = 3, strides= 2, name = 'pool1_lip')
+            
+            
+            out = tf.layers.conv2d(out, filters = 256, kernel_size = 5, padding='valid', name='conv2_lip')
+            out = tf.layers.batch_normalization(out, training= is_training, name= 'bn2_lip')
+            out = tf.nn.relu(out, name= 'relu2_lip')
+            out = tf.layers.max_pooling2d(out, pool_size = 3, strides= 2, name = 'pool2_lip')
+            
+            
+            out = tf.layers.conv2d(out, filters = 512, kernel_size = 3, padding='valid', name='conv3_lip')
+            out = tf.layers.batch_normalization(out, training= is_training, name= 'bn3_lip')
+            out = tf.nn.relu(out, name= 'relu3_lip')
+            
+            
+            out = tf.layers.conv2d(out, filters = 512, kernel_size = 3, padding='valid', name='conv4_lip')
+            out = tf.layers.batch_normalization(out, training= is_training, name= 'bn4_lip')
+            out = tf.nn.relu(out, name= 'relu4_lip')
+            
+            
+            out = tf.layers.conv2d(out, filters = 96, kernel_size = 3, padding='valid', name='conv5_lip')
+            out = tf.layers.batch_normalization(out, training= is_training, name= 'bn5_lip')
+            out = tf.nn.relu(out, name= 'relu5_lip')
+            out = tf.layers.max_pooling2d(out, pool_size = 3, strides= 3, name = 'pool5_lip')
+            
+            # fc6_lip
+            out = tf.layers.flatten(out, name = 'flatten_lip')
+            out = tf.layers.dense(out, units = 512, name = 'fc6_lip')    # (None, 512)
+            
+    # shape defined as per demo data, need to change after
+    out = tf.reshape(out, shape = [params.batch_size,-1,512]) # this will reshape a tensor back to batch_size as first dimension.
+    
+    forward_cell_list = []
+    for layer in range(params.num_vis_enc_layer):
+            with tf.variable_scope('fw_cell_{}'.format(layer)):
+                cell = was.ops.lstm_cell(params.num_vis_enc_units, params.vis_enc_dropout, is_training)
 
-    out = tf.reshape(out, [-1, 4 * 4 * num_channels * 8])
-    with tf.variable_scope('fc_1'):
-        out = tf.layers.dense(out, num_channels * 8)
-        if params.use_batch_norm:
-            out = tf.layers.batch_normalization(out, momentum=bn_momentum, training=is_training)
-        out = tf.nn.relu(out)
-    with tf.variable_scope('fc_2'):
-        logits = tf.layers.dense(out, params.num_labels)
+            forward_cell_list.append(cell)
+            
+    multi_rnn_cell = tf.nn.rnn_cell.MultiRNNCell(forward_cell_list)
+    
+    encoder_outputs, encoder_state = tf.nn.dynamic_rnn(cell=multi_rnn_cell,
+                                   inputs=out,
+                                   dtype=tf.float32)
+        
+    logging.info('Building speller')
+    with tf.variable_scope('speller'):
+        decoder_outputs, final_context_state, final_sequence_length = was.model.speller(
+            encoder_outputs, encoder_state, decoder_inputs,
+            source_sequence_length, target_sequence_length,
+            is_training, params['decoder'])
+    
+    with tf.name_scope('prediction'):
+        if not is_training and params['decode']['beam_width'] > 0:
+            logits = tf.no_op()
+            sample_ids = decoder_outputs.predicted_ids
+        else:
+            logits = decoder_outputs.rnn_output
+            sample_ids = tf.to_int32(tf.argmax(logits, -1))
+            
+    with tf.name_scope('cross_entropy'):
+        loss = was.ops.compute_loss(
+            logits, targets, final_sequence_length, target_sequence_length, is_training)
 
-    return logits
+    with tf.name_scope('metrics'):
+        edit_distance = was.ops.edit_distance(
+            sample_ids, targets, utils.EOS_ID, params.mapping)
+        
+    return sample_ids, loss, edit_distance
 
 
 def model_fn(mode, inputs, params, reuse=False):
@@ -61,29 +127,22 @@ def model_fn(mode, inputs, params, reuse=False):
         model_spec: (dict) contains the graph operations or nodes needed for training / evaluation
     """
     is_training = (mode == 'train')
-    labels = inputs['labels']
-    labels = tf.cast(labels, tf.int64)
 
     # -----------------------------------------------------------
     # MODEL: define the layers of the model
     with tf.variable_scope('model', reuse=reuse):
         # Compute the output distribution of the model and the predictions
-        logits = build_model(is_training, inputs, params)
-        predictions = tf.argmax(logits, 1)
+        sample_ids, loss, edit_distance = build_model(is_training, inputs, params)
+    
 
     # Define loss and accuracy
-    loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(labels, predictions), tf.float32))
 
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
         optimizer = tf.train.AdamOptimizer(params.learning_rate)
         global_step = tf.train.get_or_create_global_step()
-        if params.use_batch_norm:
-            # Add a dependency to update the moving mean and variance for batch normalization
-            with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-                train_op = optimizer.minimize(loss, global_step=global_step)
-        else:
+        
+    with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             train_op = optimizer.minimize(loss, global_step=global_step)
 
 
@@ -92,7 +151,7 @@ def model_fn(mode, inputs, params, reuse=False):
     # Metrics for evaluation using tf.metrics (average over whole dataset)
     with tf.variable_scope("metrics"):
         metrics = {
-            'accuracy': tf.metrics.accuracy(labels=labels, predictions=tf.argmax(logits, 1)),
+            'edit_distance': tf.metrics.mean(edit_distance),
             'loss': tf.metrics.mean(loss)
         }
 
@@ -105,18 +164,7 @@ def model_fn(mode, inputs, params, reuse=False):
 
     # Summaries for training
     tf.summary.scalar('loss', loss)
-    tf.summary.scalar('accuracy', accuracy)
-    tf.summary.image('train_image', inputs['images'])
-
-    #TODO: if mode == 'eval': ?
-    # Add incorrectly labeled images
-    mask = tf.not_equal(labels, predictions)
-
-    # Add a different summary to know how they were misclassified
-    for label in range(0, params.num_labels):
-        mask_label = tf.logical_and(mask, tf.equal(predictions, label))
-        incorrect_image_label = tf.boolean_mask(inputs['images'], mask_label)
-        tf.summary.image('incorrectly_labeled_{}'.format(label), incorrect_image_label)
+    tf.summary.scalar('edit_distance', edit_distance)
 
     # -----------------------------------------------------------
     # MODEL SPECIFICATION
@@ -124,9 +172,9 @@ def model_fn(mode, inputs, params, reuse=False):
     # It contains nodes or operations in the graph that will be used for training and evaluation
     model_spec = inputs
     model_spec['variable_init_op'] = tf.global_variables_initializer()
-    model_spec["predictions"] = predictions
+    model_spec["predictions"] = sample_ids
     model_spec['loss'] = loss
-    model_spec['accuracy'] = accuracy
+    model_spec['edit_distance'] = edit_distance
     model_spec['metrics_init_op'] = metrics_init_op
     model_spec['metrics'] = metrics
     model_spec['update_metrics'] = update_metrics_op
