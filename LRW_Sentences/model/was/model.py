@@ -2,8 +2,8 @@ import tensorflow as tf
 
 from tensorflow.python.util import nest
 
-from las.ops import lstm_cell
-from las.ops import pyramidal_bilstm
+from was.ops import lstm_cell
+from was.ops import pyramidal_bilstm
 
 __all__ = [
     'listener',

@@ -134,9 +134,6 @@ def model_fn(mode, inputs, params, reuse=False):
         # Compute the output distribution of the model and the predictions
         sample_ids, loss, edit_distance = build_model(is_training, inputs, params)
     
-
-    # Define loss and accuracy
-
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
         optimizer = tf.train.AdamOptimizer(params.learning_rate)
