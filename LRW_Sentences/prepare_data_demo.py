@@ -24,9 +24,10 @@ if not os.path.exists(mouth_destination_path):
     os.makedirs(mouth_destination_path)
     
 def process_video(input_video_path):
-#    inputparameters = {}
-#    outputparameters = {}
     cap = cv2.VideoCapture(input_video_path)
+    video_fps = int(cap.get(cv2.CAP_PROP_FPS))
+    assert FPS == video_fps, "video FPS is not 25 Hz"
+    
     total_num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     writer = skvideo.io.FFmpegWriter('demo_data/'+input_video_path.split('/')[-1]+'_lip_highlight.mp4')
