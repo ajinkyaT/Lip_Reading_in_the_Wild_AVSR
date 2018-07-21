@@ -17,7 +17,7 @@ NFRAMES = 5 # size of input volume of frames
 MARGIN = NFRAMES/2
 COLORS = 1 # grayscale
 CHANNELS = COLORS*NFRAMES
-SEQ_LEN = 250
+MAX_FRAMES_COUNT= 250 # corresponding to 10 seconds, 25Hz*10
 
 mouth_destination_path = os.path.dirname('demo_data'+'/' + 'mouth')
 if not os.path.exists(mouth_destination_path):
@@ -28,17 +28,15 @@ def process_video(input_video_path):
 #    outputparameters = {}
     cap = cv2.VideoCapture(input_video_path)
     total_num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    h, w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     writer = skvideo.io.FFmpegWriter('demo_data/'+input_video_path.split('/')[-1]+'_lip_highlight.mp4')
-#    video_shape = reader.getShape()
-#    (num_frames, h, w, c) = video_shape
-#    print(num_frames, h, w, c)
+    
     predictor_path = 'dlib/shape_predictor_68_face_landmarks.dat'
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor(predictor_path)
     
     activation = []
-    max_counter = SEQ_LEN
+    max_counter = MAX_FRAMES_COUNT
     num_frames = min(total_num_frames,max_counter)
     counter = 0
     font = cv2.FONT_HERSHEY_SIMPLEX
