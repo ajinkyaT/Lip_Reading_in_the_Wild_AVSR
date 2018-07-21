@@ -19,8 +19,6 @@ COLORS = 1 # grayscale
 CHANNELS = COLORS*NFRAMES
 SEQ_LEN = 250
 SAMPLE_LEN = SEQ_LEN-2*MARGIN
-DEFAULT_FACE_DIM = 292
-
 
 mouth_destination_path = os.path.dirname('demo_data'+'/' + 'mouth')
 if not os.path.exists(mouth_destination_path):
@@ -33,7 +31,7 @@ def process_video(input_video_path):
     reader = skvideo.io.FFmpegReader(input_video_path,
                     inputdict=inputparameters,
                     outputdict=outputparameters)
-    writer = skvideo.io.FFmpegWriter('demo_data/lip_area.mp4')
+    writer = skvideo.io.FFmpegWriter('demo_data/lip_highlight.mp4')
     video_shape = reader.getShape()
     (num_frames, h, w, c) = video_shape
     print(num_frames, h, w, c)
@@ -42,7 +40,7 @@ def process_video(input_video_path):
     predictor = dlib.shape_predictor(predictor_path)
     
     activation = []
-    max_counter = 250
+    max_counter = SEQ_LEN
     total_num_frames = int(video_shape[0])
     num_frames = min(total_num_frames,max_counter)
     counter = 0
@@ -52,7 +50,7 @@ def process_video(input_video_path):
     width_crop_max = 0
     height_crop_max = 0
 
-    for i in np.arange(SEQ_LEN):
+    for i in np.arange(num_frames):
         for frame in reader.nextFrame():
             if counter > num_frames:
                 break
@@ -126,17 +124,21 @@ def process_video(input_video_path):
         
                         # Save the mouth area.
                         mouth_gray = cv2.cvtColor(mouth, cv2.COLOR_RGB2GRAY)
+                        mouth_gray = cv2.resize(mouth_gray,(FRAME_COLS,FRAME_ROWS))
+                        temp_frames[i*COLORS:i*COLORS+COLORS,:,:] = mouth_gray
                         cv2.imwrite(mouth_destination_path + '/' + 'frame' + '_' + str(counter) + '.png', mouth_gray)
         
                         print("The cropped mouth is detected ...")
                         activation.append(1)
                     else:
                         cv2.putText(frame, 'The full mouth is not detectable. ', (30, 30), font, 1, (0, 255, 255), 2)
+                        temp_frames[i*COLORS:i*COLORS+COLORS,:,:] = np.zeros((FRAME_ROWS,FRAME_COLS),dtype="uint8")
                         print("The full mouth is not detectable. ...")
                         activation.append(0)
             else:
                 cv2.putText(frame, 'Mouth is not detectable. ', (30, 30), font, 1, (0, 0, 255), 2)
                 print("Mouth is not detectable. ...")
+                temp_frames[i*COLORS:i*COLORS+COLORS,:,:] = np.zeros((FRAME_ROWS,FRAME_COLS),dtype="uint8")
                 activation.append(0)
             
             if activation[counter] == 1:
@@ -148,13 +150,11 @@ def process_video(input_video_path):
         
             # write the output frame to file
             print("writing frame %d with activation %d" % (counter + 1, activation[counter]))
-            try:
-                writer.writeFrame(frame)
-            except:
-                pass
+            writer.writeFrame(frame)
             counter += 1
     writer.close()
-    
+    temp_frames = temp_frames.astype(np.uint8)
+    skvideo.io.vwrite("demo_data/lip_cropped.mp4", temp_frames)
 
 #		if len(faces)==0 or len(faces)>1:
 #			print ('Face detection error in %s frame: %d'%(vf, i))							
