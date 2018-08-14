@@ -1,5 +1,6 @@
 ## Audio-Visual Speech Recognition using Deep Learning
 
+Work done during [Google Summer of Code](https://summerofcode.withgoogle.com) under the organization [Red Hen Lab](http://www.redhenlab.org/)
 
 - ```SyncNet\``` : Current speaker recognition in the video frame using Deep Learning, without any labelled speaker data, described in the paper, [Out of time: automated lip sync in the wild (SyncNet)](http://www.robots.ox.ac.uk/~vgg/software/lipsync/)
 
