@@ -62,6 +62,7 @@ $DATA_DIR/pyavi/$REFERENCE/video_out_speaker.avi - current speaker in a frame hi
   <img src="img/ex2.jpg" width="45%"/>
 </p>
 
+Demo [output](https://drive.google.com/open?id=1xCAmJJpEXLPThxo-L8lx_t_JtP5MZSaz) of ```run_speaker.py```, speaker recognition in a video.
 ## Publications
  
 ```
