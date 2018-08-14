@@ -58,6 +58,7 @@ Run below script in terminal to process to get demo output of lip region cropped
 ``` bash
 $ python prepare_data_demo.py -i data/id2_vcd_swwp2s.mpg -o demo_output/
 ```
+Demo output [here](https://drive.google.com/drive/folders/1vON0G6a0X5a0JK017EQJwY9yzkkxenes)
 
 ##### TODO
 
