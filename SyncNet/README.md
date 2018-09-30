@@ -1,5 +1,7 @@
 # SyncNet
 
+##### Forked from [https://github.com/joonson/syncnet_python](https://github.com/joonson/syncnet_python)
+
 This repository contains the demo for the audio-to-video synchronisation network (SyncNet). This network can be used for audio-visual synchronisation tasks including: 
 1. Removing temporal lags between the audio and visual streams in a video;
 2. Determining who is speaking amongst multiple faces in a video. 
