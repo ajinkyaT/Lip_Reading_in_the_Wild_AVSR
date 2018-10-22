@@ -62,7 +62,7 @@ Demo output [here](https://drive.google.com/drive/folders/1vON0G6a0X5a0JK017EQJw
 
 <p align="center">
   <img src="img/ex1.JPG" width="45%"/>
-  <img src="img/ex2.JPG" width="45%" height="80%"/>
+  <img src="img/ex2.JPG" width="45%" height="60%"/>
 </p>
 
 ##### TODO
