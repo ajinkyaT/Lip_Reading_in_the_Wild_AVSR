@@ -60,6 +60,11 @@ $ python prepare_data_demo.py -i data/id2_vcd_swwp2s.mpg -o demo_output/
 ```
 Demo output [here](https://drive.google.com/drive/folders/1vON0G6a0X5a0JK017EQJwY9yzkkxenes)
 
+<p align="center">
+  <img src="img/ex1.JPG" width="45%"/>
+  <img src="img/ex2.JPG" width="45%"/>
+</p>
+
 ##### TODO
 
 - Preparing input_pipeline using new tf.data API
